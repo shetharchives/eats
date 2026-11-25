@@ -32,6 +32,9 @@
   .bar{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(8px);padding:10px 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:9px}
   .top{display:flex;gap:8px;align-items:center}
   input[type=search]{flex:1;min-width:0;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 12px;font:inherit;color:var(--ink)}
+  .frows{display:flex;flex-direction:column;gap:9px}
+  .ftoggle{display:none;flex:none;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--ink);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 12px;cursor:pointer;white-space:nowrap}
+  .ftoggle.on{background:var(--ink);color:var(--bg)}
   .count{font-size:13px;color:var(--muted);white-space:nowrap}
   .row{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
   .row::-webkit-scrollbar{display:none}
@@ -73,11 +76,16 @@
     .side{width:100%;flex:1;min-height:0;border-right:0;padding:0 14px}
     .mapcol{flex:none;height:44%;border-bottom:1px solid var(--line);transition:height .2s}
     .mapcol.big{height:72%}
-    header{padding:14px 0 6px}
-    h1{font-size:26px}
-    .sub{display:none}
+    header{display:none}
+    .side{padding-top:0}
+    .bar{padding:8px 0;gap:8px}
+    .count{display:none}
+    .ftoggle{display:block}
+    body:not(.fopen) .frows{display:none}
     .maptoggle{display:block}
-    .card{scroll-margin-top:150px}
+    .card{scroll-margin-top:66px}
+    body.fopen .card{scroll-margin-top:200px}
+    input[type=search]{padding:8px 11px}
   }
 </style>
 </head>
@@ -92,11 +100,14 @@
       <div class="top">
         <input type="search" id="q" placeholder="Search name, dish, neighborhood…" aria-label="Search">
         <span class="count" id="count"></span>
+        <button class="ftoggle" id="ftoggle" aria-expanded="false" aria-controls="frows">Filters</button>
       </div>
-      <div class="row" id="cities"></div>
-      <div class="row" id="boros" hidden></div>
-      <div class="row" id="hoods" hidden></div>
-      <div class="row" id="cuisines"></div>
+      <div class="frows" id="frows">
+        <div class="row" id="cities"></div>
+        <div class="row" id="boros" hidden></div>
+        <div class="row" id="hoods" hidden></div>
+        <div class="row" id="cuisines"></div>
+      </div>
     </div>
     <main id="list"></main>
     <footer>Pulled from Instagram DMs. Posts load from Instagram when you tap “Show post”.</footer>
@@ -139,7 +150,7 @@ function chips(el, items, key, counts, label){
   el.onclick = e => { const b=e.target.closest('.chip'); if(!b) return; state[key]=b.dataset.v;
     if(key==='city'){ state.boro='All'; state.hood='All'; }
     if(key==='boro'){ state.hood='All'; }
-    renderBars(); render(true); };
+    renderBars(); render(true); updateToggle(); };
 }
 function renderBars(){
   chips(document.getElementById('cities'), cityOrder, 'city', cityCounts);
@@ -257,9 +268,10 @@ function infoHTML(x){
 }
 function setActive(id, scroll){
   activeId=id;
+  if(isPhone()){ setFilters(false); scroll = true; }
   document.querySelectorAll('.card.active').forEach(el=>el.classList.remove('active'));
   const el=document.getElementById('c'+id);
-  if(el){ el.classList.add('active'); if(scroll) el.scrollIntoView({behavior:'smooth',block:'center'}); }
+  if(el){ el.classList.add('active'); if(scroll) el.scrollIntoView({behavior:'smooth',block: isPhone() ? 'start' : 'center'}); }
 }
 function focusPlace(id, scroll){
   setActive(id, scroll);
@@ -321,7 +333,7 @@ window.gm_authFailure = useMyMaps;
 (function(){
   if(!GOOGLE_MAPS_API_KEY){ useMyMaps(); return; }
   const s=document.createElement('script');
-  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(GOOGLE_MAPS_API_KEY)+'&callback=initMap';
+  s.src='https://maps.googleapis.com/maps/api/js?key='+encodeURIComponent(GOOGLE_MAPS_API_KEY)+'&loading=async&callback=initMap';
   s.async=true; s.onerror=useMyMaps;
   document.head.appendChild(s);
 })();
@@ -331,7 +343,29 @@ document.getElementById('maptoggle').onclick = e => {
   e.target.textContent = big ? 'Smaller map' : 'Bigger map';
   if(map) setTimeout(()=>google.maps.event.trigger(map,'resize'),50);
 };
-renderBars(); render(false);
+
+// ---- Phone: collapsible filters ----
+const isPhone = () => window.matchMedia('(max-width:900px)').matches;
+const ftoggle = document.getElementById('ftoggle');
+function activeFilterCount(){
+  return ['city','boro','hood','cuisine'].filter(k=>state[k]!=='All').length;
+}
+function updateToggle(){
+  const n = activeFilterCount(), open = document.body.classList.contains('fopen');
+  ftoggle.textContent = open ? 'Done' : (n ? `Filters · ${n}` : 'Filters');
+  ftoggle.classList.toggle('on', open || n>0);
+  ftoggle.setAttribute('aria-expanded', open);
+}
+function setFilters(open){ document.body.classList.toggle('fopen', open); updateToggle(); }
+ftoggle.onclick = () => setFilters(!document.body.classList.contains('fopen'));
+// collapse when the list is scrolled on a phone
+let lastTop = 0;
+document.getElementById('side').addEventListener('scroll', e=>{
+  const top = e.target.scrollTop;
+  if(isPhone() && top > lastTop + 30 && document.body.classList.contains('fopen')) setFilters(false);
+  lastTop = top;
+}, {passive:true});
+renderBars(); render(false); updateToggle();
 </script>
 </body>
 </html>
