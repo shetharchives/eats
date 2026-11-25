@@ -22,10 +22,9 @@
   h1{font-size:34px;line-height:1;letter-spacing:-.035em;margin:0;font-weight:800}
   h1 span{color:var(--accent)}
   .sub{color:var(--muted);margin-top:8px;font-size:13px}
-  .mapcol{flex:1;position:relative;height:100%;background:#e9e4d9}
+  .mapcol{flex:1;position:relative;height:100%;background:#e9e4d9;order:2}
   #map{width:100%;height:100%}
   .mapmsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:14px}
-  body.mymaps [data-pin]{display:none}
   .maptoggle{display:none;position:absolute;right:10px;bottom:24px;z-index:3;font:600 12px/1 ui-sans-serif,-apple-system,Arial;background:var(--ink);color:var(--bg);border:0;border-radius:999px;padding:8px 12px}
   .banner{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:12px;padding:6px 12px;border-radius:999px;z-index:2;white-space:nowrap}
 
@@ -62,6 +61,21 @@
   .btn.primary{background:var(--ink);color:var(--bg)}
   .embeds{display:flex;flex-direction:column;gap:10px}
   .embeds iframe{width:100%;height:540px;border:0;border-radius:10px;background:#fff}
+  /* compact list rows */
+  .card .sum{margin:2px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card .who{font-size:12px;color:var(--muted);margin-top:4px}
+  /* place details (replaces the list, like Google Maps) */
+  body.detailing .side>header, body.detailing .bar, body.detailing #list, body.detailing footer{display:none}
+  .detail{padding:0 0 40px}
+  .dtop{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 0;background:color-mix(in srgb,var(--bg) 94%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .back{font:inherit;font-size:14px;font-weight:600;background:none;border:0;color:var(--ink);cursor:pointer;padding:6px 0;display:flex;align-items:center;gap:6px}
+  .xbtn{font:inherit;font-size:20px;line-height:1;width:34px;height:34px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+  .detail h2{font-size:30px;letter-spacing:-.03em;line-height:1.05;margin:16px 0 6px;font-weight:800}
+  .detail .area{font-size:14px}
+  .detail .dsum{font-size:16px;margin:12px 0}
+  .detail .meta{gap:4px;margin:0 0 12px}
+  .detail .acts{margin:4px 0 16px}
+  .detail .embeds iframe{height:620px}
   .empty{color:var(--muted);padding:40px 0;text-align:center}
   footer{padding:24px 0 30px;color:var(--muted);font-size:12px}
 
@@ -72,25 +86,37 @@
   .iw a{color:var(--accent);font-weight:600;text-decoration:none;margin-right:10px;font-size:13px}
 
   @media (max-width:900px){
-    .layout{flex-direction:column-reverse}
-    .side{width:100%;flex:1;min-height:0;border-right:0;padding:0 14px}
-    .mapcol{flex:none;height:44%;border-bottom:1px solid var(--line);transition:height .2s}
-    .mapcol.big{height:72%}
+    /* phones: the page itself scrolls (keeps pull-to-refresh), map stays pinned on top */
+    html,body{height:auto;overflow:visible}
+    body{--maph:44vh}
+    body.mapbig{--maph:72vh}
+    @supports (height:1svh){ body{--maph:44svh} body.mapbig{--maph:72svh} }
+    .layout{display:block;height:auto}
+    .mapcol{position:sticky;top:0;z-index:6;height:var(--maph);border-bottom:1px solid var(--line);transition:height .2s}
+    .side{width:100%;height:auto;overflow:visible;border-right:0;padding:0 14px}
+    .bar{top:var(--maph);padding:8px 0;gap:8px}
     header{display:none}
-    .side{padding-top:0}
-    .bar{padding:8px 0;gap:8px}
     .count{display:none}
     .ftoggle{display:block}
     body:not(.fopen) .frows{display:none}
     .maptoggle{display:block}
-    .card{scroll-margin-top:66px}
-    body.fopen .card{scroll-margin-top:200px}
+    .card{scroll-margin-top:calc(var(--maph) + 66px)}
+    .dtop{top:var(--maph)}
+    .detail h2{font-size:26px;margin-top:12px}
+    .detail .embeds iframe{height:560px}
+    body.fopen .card{scroll-margin-top:calc(var(--maph) + 200px)}
     input[type=search]{padding:8px 11px}
   }
 </style>
 </head>
 <body>
 <div class="layout">
+  <aside class="mapcol" aria-label="Map">
+    <div id="map"></div>
+    <div class="mapmsg" id="mapmsg" hidden></div>
+    <div class="banner" id="banner" hidden></div>
+    <button class="maptoggle" id="maptoggle">Bigger map</button>
+  </aside>
   <div class="side" id="side">
     <header>
       <h1>Eats<span>.</span> Ky &amp; friends</h1>
@@ -110,14 +136,9 @@
       </div>
     </div>
     <main id="list"></main>
+    <section id="detail" class="detail" hidden aria-live="polite"></section>
     <footer>Pulled from Instagram DMs. Posts load from Instagram when you tap “Show post”.</footer>
   </div>
-  <aside class="mapcol" aria-label="Map">
-    <div id="map"></div>
-    <div class="mapmsg" id="mapmsg" hidden></div>
-    <div class="banner" id="banner" hidden></div>
-    <button class="maptoggle" id="maptoggle">Bigger map</button>
-  </aside>
 </div>
 
 <script>
@@ -185,22 +206,32 @@ function who(p){
   return `<span class="by ${p.by==='Ky'?'Ky':''}">${esc(p.by)}</span> → ${esc(others.join(', '))}`;
 }
 function card(x){
+  const last = x.p[0];
+  return `<article class="card${x.id===activeId?' active':''}" id="c${x.id}" tabindex="0" role="button" aria-label="${esc(x.n)}">
+    <h4>${esc(x.n)}</h4>
+    <div class="area">${esc(x.a)} · ${esc(x.k)}</div>
+    <p class="sum">${esc(x.s)}</p>
+    <div class="who">${who(last)} · ${fmt(last.date)}${x.p.length>1?` · +${x.p.length-1} more`:''}</div>
+  </article>`;
+}
+function detailHTML(x){
   const senders = x.p.map(p=>`<div>${who(p)} · ${fmt(p.date)}</div>`).join('');
   const uniq = [...new Map(x.p.map(p=>[p.code,p])).values()];
   const links = uniq.map((p,i)=>`<a class="btn" href="${esc(p.url)}" target="_blank" rel="noopener">Instagram${uniq.length>1?' '+(i+1):''} ↗</a>`).join('');
-  return `<article class="card${x.id===activeId?' active':''}" id="c${x.id}">
-    <h4>${esc(x.n)}</h4>
+  const embeds = uniq.map(p=>`<iframe src="https://www.instagram.com/p/${encodeURIComponent(p.code)}/embed/" loading="lazy" allowtransparency="true" scrolling="no" title="Instagram post about ${esc(x.n)}"></iframe>`).join('');
+  return `<div class="dtop">
+      <button class="back" data-close>← All places</button>
+      <button class="xbtn" data-close aria-label="Close">×</button>
+    </div>
+    <h2>${esc(x.n)}</h2>
     <div class="area">${esc(x.a)} · ${esc(x.k)}</div>
-    <p>${esc(x.s)}</p>
+    <p class="dsum">${esc(x.s)}</p>
     <div class="meta"><div>${senders}</div><span>via @${esc(x.p[0].owner)}</span></div>
     <div class="acts">
-      <button class="btn primary" data-show="${x.id}">Show post</button>
-      <button class="btn" data-pin="${x.id}">On map</button>
-      <a class="btn" href="${gmaps(x)}" target="_blank" rel="noopener">Directions ↗</a>
+      <a class="btn primary" href="${gmaps(x)}" target="_blank" rel="noopener">Directions ↗</a>
       ${links}
     </div>
-    <div class="embeds"></div>
-  </article>`;
+    <div class="embeds">${embeds}</div>`;
 }
 
 let visible = DATA;
@@ -226,19 +257,17 @@ function render(fit){
 }
 
 document.getElementById('list').addEventListener('click', e=>{
-  const show = e.target.closest('button[data-show]');
-  if(show){
-    const box = show.closest('.card').querySelector('.embeds');
-    if(box.childElementCount){ box.innerHTML=''; show.textContent='Show post'; return; }
-    box.innerHTML = [...new Map(DATA[show.dataset.show].p.map(p=>[p.code,p])).values()].map(p=>
-      `<iframe src="https://www.instagram.com/p/${encodeURIComponent(p.code)}/embed/" loading="lazy" allowtransparency="true" scrolling="no"></iframe>`).join('');
-    show.textContent='Hide post'; return;
-  }
-  const pin = e.target.closest('button[data-pin]');
-  if(pin){ focusPlace(Number(pin.dataset.pin), false); return; }
-  if(e.target.closest('a,button,iframe')) return;
-  const c = e.target.closest('.card'); if(c && map) focusPlace(Number(c.id.slice(1)), false);
+  if(e.target.closest('a')) return;
+  const c = e.target.closest('.card'); if(c) openPlace(Number(c.id.slice(1)));
 });
+document.getElementById('list').addEventListener('keydown', e=>{
+  if(e.key!=='Enter' && e.key!==' ') return;
+  const c = e.target.closest('.card'); if(c){ e.preventDefault(); openPlace(Number(c.id.slice(1))); }
+});
+document.getElementById('detail').addEventListener('click', e=>{ if(e.target.closest('[data-close]')) closePlace(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && document.body.classList.contains('detailing')) closePlace(); });
+window.addEventListener('popstate', ()=>{ if(document.body.classList.contains('detailing')) closePlace(true); });
+
 document.getElementById('q').addEventListener('input', e=>{ state.q=e.target.value.trim().toLowerCase(); render(true); });
 
 // ---------------- Map ----------------
@@ -266,25 +295,51 @@ function infoHTML(x){
     <a href="${gmaps(x)}" target="_blank" rel="noopener">Directions ↗</a>
     <a href="${esc(x.p[0].url)}" target="_blank" rel="noopener">Instagram ↗</a></div></div>`;
 }
-function setActive(id, scroll){
-  activeId=id;
-  if(isPhone()){ setFilters(false); scroll = true; }
-  document.querySelectorAll('.card.active').forEach(el=>el.classList.remove('active'));
-  const el=document.getElementById('c'+id);
-  if(el){ el.classList.add('active'); if(scroll) el.scrollIntoView({behavior:'smooth',block: isPhone() ? 'start' : 'center'}); }
+if('scrollRestoration' in history) history.scrollRestoration='manual';
+const side = document.getElementById('side');
+let savedScroll = 0;
+const listScroll = () => isPhone() ? window.scrollY : side.scrollTop;
+const setScroll = y => { if(isPhone()) window.scrollTo(0,y); else side.scrollTop = y; };
+const PIN = {path:0, scale:7, fillColor:'#e2462c', fillOpacity:.95, strokeColor:'#fff', strokeWeight:1.5};
+const PIN_ON = {path:0, scale:11, fillColor:'#16130f', fillOpacity:1, strokeColor:'#fff', strokeWeight:3};
+function highlight(id){
+  markers.forEach((m,mid)=>{ m.setIcon(mid===id?PIN_ON:PIN); m.setZIndex(mid===id?999:null); });
 }
-function focusPlace(id, scroll){
-  setActive(id, scroll);
-  const m=markers.get(id);
-  if(!map){ window.open(gmaps(DATA[id]),'_blank','noopener'); return; }
-  if(!m) return;
-  map.panTo(m.getPosition()); if(map.getZoom()<14) map.setZoom(14);
-  info.setContent(infoHTML(DATA[id])); info.open(map,m);
+function openPlace(id){
+  const x = DATA[id];
+  const wasOpen = document.body.classList.contains('detailing');
+  if(!wasOpen) savedScroll = listScroll();
+  activeId = id;
+  setFilters(false);
+  const d = document.getElementById('detail');
+  d.innerHTML = detailHTML(x); d.hidden = false;
+  document.body.classList.add('detailing');
+  setScroll(0);
+  if(wasOpen) history.replaceState({place:id},''); else history.pushState({place:id},'');
+  if(map){
+    info.close();
+    const m = markers.get(id);
+    if(m){ highlight(id); map.panTo(m.getPosition()); if(map.getZoom()<14) map.setZoom(14); }
+  }
+  d.querySelector('.back').focus({preventScroll:true});
+}
+function closePlace(fromHistory){
+  if(!document.body.classList.contains('detailing')) return;
+  const id = activeId;
+  document.body.classList.remove('detailing');
+  const d = document.getElementById('detail'); d.hidden = true; d.innerHTML = '';
+  if(map) highlight(-1);
+  document.querySelectorAll('.card.active').forEach(el=>el.classList.remove('active'));
+  const el = document.getElementById('c'+id);
+  if(el) el.classList.add('active');
+  const y = savedScroll;
+  if(!fromHistory && history.state && history.state.place!==undefined) history.back();
+  requestAnimationFrame(()=>setScroll(y));
+  setTimeout(()=>setScroll(y), 60);
 }
 function addMarker(x, pos){
-  const m = new google.maps.Marker({position:pos, title:x.n, icon:{path:google.maps.SymbolPath.CIRCLE, scale:7,
-    fillColor:'#e2462c', fillOpacity:.95, strokeColor:'#fff', strokeWeight:1.5}});
-  m.addListener('click', ()=>{ info.setContent(infoHTML(x)); info.open(map,m); setActive(x.id, true); });
+  const m = new google.maps.Marker({position:pos, title:x.n, icon: x.id===activeId && document.body.classList.contains('detailing') ? PIN_ON : PIN});
+  m.addListener('click', ()=>openPlace(x.id));
   markers.set(x.id, m);
 }
 function syncMarkers(fit){
@@ -339,9 +394,9 @@ window.gm_authFailure = useMyMaps;
 })();
 
 document.getElementById('maptoggle').onclick = e => {
-  const col=document.querySelector('.mapcol'); const big=col.classList.toggle('big');
+  const big=document.body.classList.toggle('mapbig');
   e.target.textContent = big ? 'Smaller map' : 'Bigger map';
-  if(map) setTimeout(()=>google.maps.event.trigger(map,'resize'),50);
+  if(map) setTimeout(()=>google.maps.event.trigger(map,'resize'),250);
 };
 
 // ---- Phone: collapsible filters ----
@@ -360,11 +415,12 @@ function setFilters(open){ document.body.classList.toggle('fopen', open); update
 ftoggle.onclick = () => setFilters(!document.body.classList.contains('fopen'));
 // collapse when the list is scrolled on a phone
 let lastTop = 0;
-document.getElementById('side').addEventListener('scroll', e=>{
-  const top = e.target.scrollTop;
+function onListScroll(top){
   if(isPhone() && top > lastTop + 30 && document.body.classList.contains('fopen')) setFilters(false);
   lastTop = top;
-}, {passive:true});
+}
+window.addEventListener('scroll', ()=>onListScroll(window.scrollY), {passive:true});
+document.getElementById('side').addEventListener('scroll', e=>onListScroll(e.target.scrollTop), {passive:true});
 renderBars(); render(false); updateToggle();
 </script>
 </body>
