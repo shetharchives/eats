@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>Eats — Ky & friends</title>
 <style>
@@ -87,7 +87,13 @@
 
   @media (max-width:900px){
     /* phones: the page itself scrolls (keeps pull-to-refresh), map stays pinned on top */
-    html,body{height:auto;overflow:visible}
+    html,body{height:auto;overflow:visible;overflow-x:clip;max-width:100%}
+    html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+    /* lock the page to the screen width: vertical scrolling only (no pinch or double-tap zoom) */
+    .side{touch-action:pan-y}
+    .row{touch-action:pan-x pan-y}
+    /* 16px stops iPhone zooming in when you tap the search box */
+    input[type=search]{font-size:16px}
     body{--maph:44vh}
     body.mapbig{--maph:72vh}
     @supports (height:1svh){ body{--maph:44svh} body.mapbig{--maph:72svh} }
@@ -106,6 +112,8 @@
     .detail .embeds iframe{height:560px}
     body.fopen .card{scroll-margin-top:calc(var(--maph) + 200px)}
     input[type=search]{padding:8px 11px}
+    .layout,.side,.detail{max-width:100vw}
+    .embeds iframe{max-width:100%}
   }
 </style>
 </head>
@@ -370,7 +378,8 @@ async function geocodeAll(){
 window.initMap = function(){
   map = new google.maps.Map(document.getElementById('map'), {
     center:{lat:40.722,lng:-73.975}, zoom:13, styles:MAP_STYLE,
-    mapTypeControl:false, streetViewControl:false, fullscreenControl:true, clickableIcons:false
+    mapTypeControl:false, streetViewControl:false, fullscreenControl:true, clickableIcons:false,
+    gestureHandling:'greedy'
   });
   info = new google.maps.InfoWindow(); geocoder = new google.maps.Geocoder();
   geocodeAll();
